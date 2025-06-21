@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Annual Seasonal Clock</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif; /* Fallback font */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #000000; /* Black background */
+            color: #e0e0e0; /* Lightened text color for dark background */
+        }
+        #clockContainer {
+            width: 90vw;
+            height: 90vw;
+            max-width: 600px;
+            max-height: 600px;
+            position: relative;
+            border-radius: 50%;
+            box-shadow: 0 10px 25px rgba(255,255,255,0.05), 0 5px 10px rgba(255,255,255,0.02); /* Adjusted shadow for dark bg */
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+        .info-text {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #cccccc; /* Lightened for dark background */
+            text-align: center;
+            padding: 0 15px;
+            font-family: 'Inter', sans-serif; /* Keep info text more readable */
+        }
+        .title-text {
+            font-family: 'Cinzel Decorative', cursive; /* Apply new font */
+            font-size: 1.8rem; /* Slightly larger for this font */
+            font-weight: 700; /* Cinzel Decorative often looks good bold */
+            margin-bottom: 0px; 
+            color: #f0f0f0; 
+        }
+        #countdownContainer p {
+            font-family: 'Cinzel Decorative', cursive; /* Apply new font */
+            font-weight: 400;
+            line-height: 1.5; /* Adjusted line height for new font */
+            font-size: 0.8rem; /* Adjust size as needed for this font */
+        }
+        /* Responsive font sizes for countdowns if needed */
+        @media (min-width: 640px) { #countdownContainer p { font-size: 0.9rem; } }
+        @media (min-width: 768px) { #countdownContainer p { font-size: 1rem; } }
+
+    </style>
+</head>
+<body class="bg-black"> 
+    <div class="text-center p-4">
+        <h1 class="title-text">Annual Seasonal Clock</h1>
+        <div id="countdownContainer" class="space-y-1 mt-2">
+            
+            <p id="nextSolsticeCountdown" class="text-gray-300"></p>
+        </div>
+    </div>
+
+    <div id="clockContainer">
+        <canvas id="seasonalClockCanvas"></canvas>
+    </div>
+    
+
+    <script>
+        const canvas = document.getElementById('seasonalClockCanvas');
+        const ctx = canvas.getContext('2d');
+        // Elements for countdowns
+        const seasonPeakCountdownEl = document.getElementById('seasonPeakCountdown');
+        const nextSolsticeCountdownEl = document.getElementById('nextSolsticeCountdown');
+
+        let clockRadius;
+        let centerX, centerY;
+
+        // --- Date Helper Functions ---
+        function getDaysInYear(year) {
+            return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 366 : 365;
+        }
+
+        function getDayOfYear(date) {
+            const startOfYear = new Date(date.getFullYear(), 0, 0); 
+            const diff = date - startOfYear;
+            const oneDay = 1000 * 60 * 60 * 24;
+            return Math.floor(diff / oneDay); 
+        }
+
+        // Approximate dates for solstices and equinoxes
+        const SEASONAL_DATES_CONFIG = {
+            winterSolstice: { month: 11, day: 21, color: 'white' },    // Dec 21
+            springEquinox:  { month: 2,  day: 20, color: 'green' },    // Mar 20
+            summerSolstice: { month: 5,  day: 21, color: 'fuchsia' },  // Jun 21
+            autumnEquinox:  { month: 8,  day: 22, color: 'orange'}     // Sep 22
+        };
+
+        function getSeasonalEventDayOfYear(year, eventKey) {
+            const eventConfig = SEASONAL_DATES_CONFIG[eventKey];
+            if (!eventConfig) {
+                console.error(`Configuration for event key "${eventKey}" not found.`);
+                return 0; 
+            }
+            const eventDate = new Date(year, eventConfig.month, eventConfig.day);
+            return getDayOfYear(eventDate);
+        }
+
+        // --- Countdown and Season Logic ---
+        function getSeasonInfo(now) {
+            const year = now.getFullYear();
+            const events = {};
+
+            for (let yOffset = -1; yOffset <= 1; yOffset++) {
+                const targetYear = year + yOffset;
+                for (const key in SEASONAL_DATES_CONFIG) {
+                    events[`${key}${targetYear}`] = new Date(targetYear, SEASONAL_DATES_CONFIG[key].month, SEASONAL_DATES_CONFIG[key].day, 12, 0, 0);
+                }
+            }
+
+            let currentSeasonName = "Unknown";
+            let seasonStartDate, seasonEndDate, peakDate;
+
+            if (now >= events[`winterSolstice${year-1}`] && now < events[`springEquinox${year}`]) {
+                currentSeasonName = "Winter";
+                seasonStartDate = events[`winterSolstice${year-1}`];
+                seasonEndDate = events[`springEquinox${year}`];
+            } else if (now >= events[`springEquinox${year}`] && now < events[`summerSolstice${year}`]) {
+                currentSeasonName = "Spring";
+                seasonStartDate = events[`springEquinox${year}`];
+                seasonEndDate = events[`summerSolstice${year}`];
+            } else if (now >= events[`summerSolstice${year}`] && now < events[`autumnEquinox${year}`]) {
+                currentSeasonName = "Summer";
+                seasonStartDate = events[`summerSolstice${year}`];
+                seasonEndDate = events[`autumnEquinox${year}`];
+            } else if (now >= events[`autumnEquinox${year}`] && now < events[`winterSolstice${year}`]) {
+                currentSeasonName = "Autumn";
+                seasonStartDate = events[`autumnEquinox${year}`];
+                seasonEndDate = events[`winterSolstice${year}`];
+            } else if (now >= events[`winterSolstice${year}`] && now < events[`springEquinox${year+1}`]) {
+                currentSeasonName = "Winter";
+                seasonStartDate = events[`winterSolstice${year}`];
+                seasonEndDate = events[`springEquinox${year+1}`];
+            }
+
+            if (seasonStartDate && seasonEndDate) {
+                peakDate = new Date(seasonStartDate.getTime() + (seasonEndDate.getTime() - seasonStartDate.getTime()) / 2);
+            } else {
+                peakDate = now; 
+            }
+            
+            let nextSolsticeDate, nextSolsticeName;
+            const futureSolstices = [];
+            if (events[`summerSolstice${year}`] > now) futureSolstices.push({name: "Summer Solstice", date: events[`summerSolstice${year}`]});
+            if (events[`winterSolstice${year}`] > now) futureSolstices.push({name: "Winter Solstice", date: events[`winterSolstice${year}`]});
+            futureSolstices.push({name: "Summer Solstice", date: events[`summerSolstice${year+1}`]}); 
+            futureSolstices.push({name: "Winter Solstice", date: events[`winterSolstice${year+1}`]});
+
+            futureSolstices.sort((a,b) => a.date - b.date); 
+
+            if (futureSolstices.length > 0) {
+                nextSolsticeDate = futureSolstices[0].date;
+                nextSolsticeName = futureSolstices[0].name;
+            } else {
+                nextSolsticeDate = now; 
+                nextSolsticeName = "Error finding solstice";
+            }
+
+            return {
+                seasonName: currentSeasonName,
+                peakDate: peakDate,
+                nextSolsticeDate: nextSolsticeDate,
+                nextSolsticeName: nextSolsticeName
+            };
+        }
+
+        function formatCountdown(targetDate, targetName) {
+            const now = new Date();
+            const diff = targetDate.getTime() - now.getTime();
+
+            if (diff <= 0) {
+                return `${targetName} has arrived!`;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            return `Time until ${targetName}: ${days}d ${hours}h ${minutes}m ${seconds}s`;
+        }
+        
+        function updateCountdowns(now) {
+            const info = getSeasonInfo(now);
+            // Check if elements exist before setting textContent
+            if (seasonPeakCountdownEl && info.peakDate) {
+                seasonPeakCountdownEl.textContent = formatCountdown(info.peakDate, `peak of ${info.seasonName}`);
+            } else if (seasonPeakCountdownEl) {
+                 seasonPeakCountdownEl.textContent = "Calculating peak season...";
+            }
+
+            if (nextSolsticeCountdownEl && info.nextSolsticeDate) {
+                nextSolsticeCountdownEl.textContent = formatCountdown(info.nextSolsticeDate, info.nextSolsticeName);
+            } else if (nextSolsticeCountdownEl) {
+                nextSolsticeCountdownEl.textContent = "Calculating next solstice...";
+            }
+        }
+
+
+        function setupCanvas() {
+            const container = document.getElementById('clockContainer');
+            const style = window.getComputedStyle(container);
+            if (style.display === 'none' || container.clientWidth === 0) {
+                setTimeout(setupCanvas, 50);
+                return;
+            }
+            const size = Math.min(container.clientWidth, container.clientHeight);
+            canvas.width = size;
+            canvas.height = size;
+            clockRadius = size / 2 * 0.9; 
+            centerX = size / 2;
+            centerY = size / 2;
+        }
+
+        function drawClock() {
+            if (!clockRadius) { 
+                setupCanvas(); 
+                if(!clockRadius) return; 
+            }
+
+            const now = new Date();
+            const currentYear = now.getFullYear(); 
+            const daysInCurrentYear = getDaysInYear(currentYear);
+
+            updateCountdowns(now);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const day_WS = getSeasonalEventDayOfYear(currentYear, 'winterSolstice');
+            const day_VE = getSeasonalEventDayOfYear(currentYear, 'springEquinox');
+            const day_SS = getSeasonalEventDayOfYear(currentYear, 'summerSolstice');
+            const day_AE = getSeasonalEventDayOfYear(currentYear, 'autumnEquinox'); 
+
+            const offset_VE = ((day_VE - day_WS + daysInCurrentYear) % daysInCurrentYear) / daysInCurrentYear;
+            const offset_SS = ((day_SS - day_WS + daysInCurrentYear) % daysInCurrentYear) / daysInCurrentYear;
+            const offset_AE = ((day_AE - day_WS + daysInCurrentYear) % daysInCurrentYear) / daysInCurrentYear;
+            
+            const conicGradient = ctx.createConicGradient(-Math.PI / 2, centerX, centerY);
+            conicGradient.addColorStop(0, SEASONAL_DATES_CONFIG.winterSolstice.color);
+            conicGradient.addColorStop(offset_VE, SEASONAL_DATES_CONFIG.springEquinox.color);
+            conicGradient.addColorStop(offset_SS, SEASONAL_DATES_CONFIG.summerSolstice.color); 
+            conicGradient.addColorStop(offset_AE, SEASONAL_DATES_CONFIG.autumnEquinox.color);
+            conicGradient.addColorStop(1, SEASONAL_DATES_CONFIG.winterSolstice.color); 
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, clockRadius, 0, 2 * Math.PI);
+            ctx.fillStyle = conicGradient;
+            ctx.fill();
+
+            ctx.strokeStyle = '#555'; 
+            ctx.lineWidth = Math.max(1, clockRadius * 0.015); 
+            ctx.stroke();
+
+            const currentDayOfYear = getDayOfYear(now);
+            const timeFraction = (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / (24 * 3600);
+            const preciseDayFloat = currentDayOfYear -1 + timeFraction; 
+
+            let daysSinceWS;
+            if (preciseDayFloat >= (day_WS -1) ) { 
+                 daysSinceWS = preciseDayFloat - (day_WS -1);
+            } else { 
+                 const prevYear = currentYear -1;
+                 const day_WS_prevYear = getSeasonalEventDayOfYear(prevYear, 'winterSolstice');
+                 const daysInPrevYear = getDaysInYear(prevYear);
+                 daysSinceWS = (daysInPrevYear - (day_WS_prevYear -1)) + preciseDayFloat;
+            }
+            
+            const fractionOfYear_fromWS = daysSinceWS / daysInCurrentYear; 
+            const handAngle = fractionOfYear_fromWS * 2 * Math.PI; 
+
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(handAngle); 
+            
+            ctx.beginPath();
+            ctx.moveTo(0, 0); 
+            const handLength = clockRadius * 0.85;
+            const handWidth = clockRadius * 0.05;
+            ctx.lineTo(0, -handLength); 
+            
+            // Changed hand color to black
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'; // Black hand, slightly transparent
+            ctx.lineWidth = Math.max(3, handWidth); 
+            ctx.lineCap = 'round'; 
+            ctx.stroke();
+            
+            // Changed base of hand color to black
+            ctx.beginPath();
+            ctx.arc(0,0, handWidth * 0.6, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'; // Black base, slightly transparent
+            ctx.fill();
+
+            ctx.restore();
+
+            // Central Hub - kept light for contrast with black hand and potentially dark background sections
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, Math.max(4, clockRadius * 0.04), 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(200, 200, 200, 0.7)'; 
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(220,220,220,0.5)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        function animate() {
+            drawClock();
+            requestAnimationFrame(animate); 
+        }
+
+        window.addEventListener('resize', () => {
+            setupCanvas();
+            drawClock(); 
+        });
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            setupCanvas();
+            animate(); 
+        });
+    </script>
+</body>
+</html>
