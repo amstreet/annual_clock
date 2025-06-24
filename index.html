@@ -49,8 +49,8 @@
             font-family: 'Cinzel Decorative', cursive; /* Apply new font */
             font-size: 1.8rem; /* Slightly larger for this font */
             font-weight: 700; /* Cinzel Decorative often looks good bold */
-            margin-bottom: 0px; 
-            color: #f0f0f0; 
+            margin-bottom: 0px;
+            color: #f0f0f0;
         }
         #countdownContainer p {
             font-family: 'Cinzel Decorative', cursive; /* Apply new font */
@@ -64,26 +64,24 @@
 
     </style>
 </head>
-<body class="bg-black"> 
+<body class="bg-black">
     <div class="text-center p-4">
         <h1 class="title-text">Annual Seasonal Clock</h1>
         <div id="countdownContainer" class="space-y-1 mt-2">
-            
-            <p id="nextSolsticeCountdown" class="text-gray-300"></p>
+            <p id="nextEventCountdown" class="text-gray-300"></p>
         </div>
     </div>
 
     <div id="clockContainer">
         <canvas id="seasonalClockCanvas"></canvas>
     </div>
-    
+
 
     <script>
         const canvas = document.getElementById('seasonalClockCanvas');
         const ctx = canvas.getContext('2d');
-        // Elements for countdowns
-        const seasonPeakCountdownEl = document.getElementById('seasonPeakCountdown');
-        const nextSolsticeCountdownEl = document.getElementById('nextSolsticeCountdown');
+        // Element for the single countdown
+        const nextEventCountdownEl = document.getElementById('nextEventCountdown');
 
         let clockRadius;
         let centerX, centerY;
@@ -94,25 +92,25 @@
         }
 
         function getDayOfYear(date) {
-            const startOfYear = new Date(date.getFullYear(), 0, 0); 
+            const startOfYear = new Date(date.getFullYear(), 0, 0);
             const diff = date - startOfYear;
             const oneDay = 1000 * 60 * 60 * 24;
-            return Math.floor(diff / oneDay); 
+            return Math.floor(diff / oneDay);
         }
 
         // Approximate dates for solstices and equinoxes
         const SEASONAL_DATES_CONFIG = {
-            winterSolstice: { month: 11, day: 21, color: 'white' },    // Dec 21
-            springEquinox:  { month: 2,  day: 20, color: 'green' },    // Mar 20
-            summerSolstice: { month: 5,  day: 21, color: 'fuchsia' },  // Jun 21
-            autumnEquinox:  { month: 8,  day: 22, color: 'orange'}     // Sep 22
+            winterSolstice: { name: "Winter Solstice", month: 11, day: 21, color: 'white' },
+            springEquinox:  { name: "Spring Equinox",  month: 2,  day: 20, color: 'green' },
+            summerSolstice: { name: "Summer Solstice", month: 5,  day: 21, color: 'fuchsia' },
+            autumnEquinox:  { name: "Autumn Equinox",  month: 8,  day: 22, color: 'orange'}
         };
 
         function getSeasonalEventDayOfYear(year, eventKey) {
             const eventConfig = SEASONAL_DATES_CONFIG[eventKey];
             if (!eventConfig) {
                 console.error(`Configuration for event key "${eventKey}" not found.`);
-                return 0; 
+                return 0;
             }
             const eventDate = new Date(year, eventConfig.month, eventConfig.day);
             return getDayOfYear(eventDate);
@@ -123,66 +121,35 @@
             const year = now.getFullYear();
             const events = {};
 
-            for (let yOffset = -1; yOffset <= 1; yOffset++) {
+            // Create date objects for seasonal events for the current and next year
+            for (let yOffset = 0; yOffset <= 1; yOffset++) {
                 const targetYear = year + yOffset;
                 for (const key in SEASONAL_DATES_CONFIG) {
+                    // Create a unique key for each event instance (e.g., 'winterSolstice2024')
                     events[`${key}${targetYear}`] = new Date(targetYear, SEASONAL_DATES_CONFIG[key].month, SEASONAL_DATES_CONFIG[key].day, 12, 0, 0);
                 }
             }
-
-            let currentSeasonName = "Unknown";
-            let seasonStartDate, seasonEndDate, peakDate;
-
-            if (now >= events[`winterSolstice${year-1}`] && now < events[`springEquinox${year}`]) {
-                currentSeasonName = "Winter";
-                seasonStartDate = events[`winterSolstice${year-1}`];
-                seasonEndDate = events[`springEquinox${year}`];
-            } else if (now >= events[`springEquinox${year}`] && now < events[`summerSolstice${year}`]) {
-                currentSeasonName = "Spring";
-                seasonStartDate = events[`springEquinox${year}`];
-                seasonEndDate = events[`summerSolstice${year}`];
-            } else if (now >= events[`summerSolstice${year}`] && now < events[`autumnEquinox${year}`]) {
-                currentSeasonName = "Summer";
-                seasonStartDate = events[`summerSolstice${year}`];
-                seasonEndDate = events[`autumnEquinox${year}`];
-            } else if (now >= events[`autumnEquinox${year}`] && now < events[`winterSolstice${year}`]) {
-                currentSeasonName = "Autumn";
-                seasonStartDate = events[`autumnEquinox${year}`];
-                seasonEndDate = events[`winterSolstice${year}`];
-            } else if (now >= events[`winterSolstice${year}`] && now < events[`springEquinox${year+1}`]) {
-                currentSeasonName = "Winter";
-                seasonStartDate = events[`winterSolstice${year}`];
-                seasonEndDate = events[`springEquinox${year+1}`];
-            }
-
-            if (seasonStartDate && seasonEndDate) {
-                peakDate = new Date(seasonStartDate.getTime() + (seasonEndDate.getTime() - seasonStartDate.getTime()) / 2);
-            } else {
-                peakDate = now; 
-            }
             
-            let nextSolsticeDate, nextSolsticeName;
-            const futureSolstices = [];
-            if (events[`summerSolstice${year}`] > now) futureSolstices.push({name: "Summer Solstice", date: events[`summerSolstice${year}`]});
-            if (events[`winterSolstice${year}`] > now) futureSolstices.push({name: "Winter Solstice", date: events[`winterSolstice${year}`]});
-            futureSolstices.push({name: "Summer Solstice", date: events[`summerSolstice${year+1}`]}); 
-            futureSolstices.push({name: "Winter Solstice", date: events[`winterSolstice${year+1}`]});
-
-            futureSolstices.sort((a,b) => a.date - b.date); 
-
-            if (futureSolstices.length > 0) {
-                nextSolsticeDate = futureSolstices[0].date;
-                nextSolsticeName = futureSolstices[0].name;
-            } else {
-                nextSolsticeDate = now; 
-                nextSolsticeName = "Error finding solstice";
+            // --- Find the single next event ---
+            const allNextEvents = [];
+            for (const key in SEASONAL_DATES_CONFIG) {
+                const eventConfig = SEASONAL_DATES_CONFIG[key];
+                // Check if this year's event is in the future
+                if (events[`${key}${year}`] > now) {
+                    allNextEvents.push({ name: eventConfig.name, date: events[`${key}${year}`] });
+                }
+                // Always add next year's event to the list of possibilities
+                allNextEvents.push({ name: eventConfig.name, date: events[`${key}${year+1}`] });
             }
+
+            // Sort all possible future events to find the soonest one
+            allNextEvents.sort((a, b) => a.date - b.date);
+            
+            const nextEvent = allNextEvents[0];
 
             return {
-                seasonName: currentSeasonName,
-                peakDate: peakDate,
-                nextSolsticeDate: nextSolsticeDate,
-                nextSolsticeName: nextSolsticeName
+                nextEventName: nextEvent.name,
+                nextEventDate: nextEvent.date,
             };
         }
 
@@ -201,20 +168,15 @@
 
             return `Time until ${targetName}: ${days}d ${hours}h ${minutes}m ${seconds}s`;
         }
-        
+
         function updateCountdowns(now) {
             const info = getSeasonInfo(now);
-            // Check if elements exist before setting textContent
-            if (seasonPeakCountdownEl && info.peakDate) {
-                seasonPeakCountdownEl.textContent = formatCountdown(info.peakDate, `peak of ${info.seasonName}`);
-            } else if (seasonPeakCountdownEl) {
-                 seasonPeakCountdownEl.textContent = "Calculating peak season...";
-            }
 
-            if (nextSolsticeCountdownEl && info.nextSolsticeDate) {
-                nextSolsticeCountdownEl.textContent = formatCountdown(info.nextSolsticeDate, info.nextSolsticeName);
-            } else if (nextSolsticeCountdownEl) {
-                nextSolsticeCountdownEl.textContent = "Calculating next solstice...";
+            // Update the single countdown element
+            if (nextEventCountdownEl && info.nextEventDate) {
+                nextEventCountdownEl.textContent = formatCountdown(info.nextEventDate, info.nextEventName);
+            } else if (nextEventCountdownEl) {
+                nextEventCountdownEl.textContent = "Calculating next seasonal event...";
             }
         }
 
@@ -222,6 +184,7 @@
         function setupCanvas() {
             const container = document.getElementById('clockContainer');
             const style = window.getComputedStyle(container);
+            // Wait for the container to be visible and have a size
             if (style.display === 'none' || container.clientWidth === 0) {
                 setTimeout(setupCanvas, 50);
                 return;
@@ -229,19 +192,19 @@
             const size = Math.min(container.clientWidth, container.clientHeight);
             canvas.width = size;
             canvas.height = size;
-            clockRadius = size / 2 * 0.9; 
+            clockRadius = size / 2 * 0.9;
             centerX = size / 2;
             centerY = size / 2;
         }
 
         function drawClock() {
-            if (!clockRadius) { 
-                setupCanvas(); 
-                if(!clockRadius) return; 
+            if (!clockRadius) {
+                setupCanvas();
+                if(!clockRadius) return;
             }
 
             const now = new Date();
-            const currentYear = now.getFullYear(); 
+            const currentYear = now.getFullYear();
             const daysInCurrentYear = getDaysInYear(currentYear);
 
             updateCountdowns(now);
@@ -251,62 +214,66 @@
             const day_WS = getSeasonalEventDayOfYear(currentYear, 'winterSolstice');
             const day_VE = getSeasonalEventDayOfYear(currentYear, 'springEquinox');
             const day_SS = getSeasonalEventDayOfYear(currentYear, 'summerSolstice');
-            const day_AE = getSeasonalEventDayOfYear(currentYear, 'autumnEquinox'); 
+            const day_AE = getSeasonalEventDayOfYear(currentYear, 'autumnEquinox');
 
+            // Calculate the positions of seasonal events on the clock face as a fraction of the year
             const offset_VE = ((day_VE - day_WS + daysInCurrentYear) % daysInCurrentYear) / daysInCurrentYear;
             const offset_SS = ((day_SS - day_WS + daysInCurrentYear) % daysInCurrentYear) / daysInCurrentYear;
             const offset_AE = ((day_AE - day_WS + daysInCurrentYear) % daysInCurrentYear) / daysInCurrentYear;
-            
+
+            // Create a conic gradient for the background of the clock
             const conicGradient = ctx.createConicGradient(-Math.PI / 2, centerX, centerY);
             conicGradient.addColorStop(0, SEASONAL_DATES_CONFIG.winterSolstice.color);
             conicGradient.addColorStop(offset_VE, SEASONAL_DATES_CONFIG.springEquinox.color);
-            conicGradient.addColorStop(offset_SS, SEASONAL_DATES_CONFIG.summerSolstice.color); 
+            conicGradient.addColorStop(offset_SS, SEASONAL_DATES_CONFIG.summerSolstice.color);
             conicGradient.addColorStop(offset_AE, SEASONAL_DATES_CONFIG.autumnEquinox.color);
-            conicGradient.addColorStop(1, SEASONAL_DATES_CONFIG.winterSolstice.color); 
+            conicGradient.addColorStop(1, SEASONAL_DATES_CONFIG.winterSolstice.color);
 
             ctx.beginPath();
             ctx.arc(centerX, centerY, clockRadius, 0, 2 * Math.PI);
             ctx.fillStyle = conicGradient;
             ctx.fill();
 
-            ctx.strokeStyle = '#555'; 
-            ctx.lineWidth = Math.max(1, clockRadius * 0.015); 
+            // Draw the border of the clock
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = Math.max(1, clockRadius * 0.015);
             ctx.stroke();
 
+            // Calculate the position of the hand
             const currentDayOfYear = getDayOfYear(now);
             const timeFraction = (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / (24 * 3600);
-            const preciseDayFloat = currentDayOfYear -1 + timeFraction; 
+            const preciseDayFloat = currentDayOfYear -1 + timeFraction;
 
             let daysSinceWS;
-            if (preciseDayFloat >= (day_WS -1) ) { 
+            if (preciseDayFloat >= (day_WS -1) ) {
                  daysSinceWS = preciseDayFloat - (day_WS -1);
-            } else { 
+            } else {
                  const prevYear = currentYear -1;
                  const day_WS_prevYear = getSeasonalEventDayOfYear(prevYear, 'winterSolstice');
                  const daysInPrevYear = getDaysInYear(prevYear);
                  daysSinceWS = (daysInPrevYear - (day_WS_prevYear -1)) + preciseDayFloat;
             }
-            
-            const fractionOfYear_fromWS = daysSinceWS / daysInCurrentYear; 
-            const handAngle = fractionOfYear_fromWS * 2 * Math.PI; 
 
+            const fractionOfYear_fromWS = daysSinceWS / daysInCurrentYear;
+            const handAngle = fractionOfYear_fromWS * 2 * Math.PI;
+
+            // Draw the hand
             ctx.save();
             ctx.translate(centerX, centerY);
-            ctx.rotate(handAngle); 
-            
+            ctx.rotate(handAngle);
+
             ctx.beginPath();
-            ctx.moveTo(0, 0); 
+            ctx.moveTo(0, 0);
             const handLength = clockRadius * 0.85;
             const handWidth = clockRadius * 0.05;
-            ctx.lineTo(0, -handLength); 
-            
-            // Changed hand color to black
+            ctx.lineTo(0, -handLength);
+
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'; // Black hand, slightly transparent
-            ctx.lineWidth = Math.max(3, handWidth); 
-            ctx.lineCap = 'round'; 
+            ctx.lineWidth = Math.max(3, handWidth);
+            ctx.lineCap = 'round';
             ctx.stroke();
-            
-            // Changed base of hand color to black
+
+            // Draw the base of the hand
             ctx.beginPath();
             ctx.arc(0,0, handWidth * 0.6, 0, 2 * Math.PI);
             ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'; // Black base, slightly transparent
@@ -314,29 +281,32 @@
 
             ctx.restore();
 
-            // Central Hub - kept light for contrast with black hand and potentially dark background sections
+            // Draw the central hub
             ctx.beginPath();
             ctx.arc(centerX, centerY, Math.max(4, clockRadius * 0.04), 0, 2 * Math.PI);
-            ctx.fillStyle = 'rgba(200, 200, 200, 0.7)'; 
+            ctx.fillStyle = 'rgba(200, 200, 200, 0.7)';
             ctx.fill();
             ctx.strokeStyle = 'rgba(220,220,220,0.5)';
             ctx.lineWidth = 1;
             ctx.stroke();
         }
 
+        // Animation loop
         function animate() {
             drawClock();
-            requestAnimationFrame(animate); 
+            requestAnimationFrame(animate);
         }
 
+        // Redraw canvas on window resize
         window.addEventListener('resize', () => {
             setupCanvas();
-            drawClock(); 
+            drawClock();
         });
-        
+
+        // Initial setup and start of animation
         document.addEventListener('DOMContentLoaded', () => {
             setupCanvas();
-            animate(); 
+            animate();
         });
     </script>
 </body>
